@@ -10,25 +10,40 @@ A docker container of this repository is available [here](https://hub.docker.com
 
 The command line usage is:
 
-     Usage: CfMes.exe [<options>]
+        Usage: CfMes.exe [<options>]
 
-     Options:
-           --as, --assemblystation=VALUE
-                                  the endpoint of the assemblystation.
-                                    Default: 'opc.tcp://johanngnb:51210'
-           --ts, --teststation=VALUE
-                                  the endpoint of the teststation.
-                                    Default: 'opc.tcp://johanngnb:51211'
-           --ps, --packagingstation=VALUE
-                                  the endpoint of the packagingstation.
-                                    Default: 'opc.tcp://johanngnb:51212'
-           --lf, --logfile=VALUE  the filename of the logfile to use.
-                                    Default: 'johanngnb-MES.log'
-           --aa, --autoaccept     auto accept station server certificates
-                                    Default: '_autoAcceptCerts'
-           --st, --opcstacktracemask=VALUE
-                                  the trace mask for the OPC stack. See github OPC .
-                                    NET stack for definitions.
-
-                                    Default: 285  (645)
-       -h, --help                 show this message and exit
+        Options:
+              --as, --assemblystation=VALUE
+                                     the endpoint of the assemblystation.
+                                       Default: 'opc.tcp://<hostname>:51210'
+              --ts, --teststation=VALUE
+                                     the endpoint of the teststation.
+                                       Default: 'opc.tcp://<hostname>:51211'
+              --ps, --packagingstation=VALUE
+                                     the endpoint of the packagingstation.
+                                       Default: 'opc.tcp://<hostname>:51212'
+              --lf, --logfile=VALUE  the filename of the logfile to use.
+                                       Default: '<hostname>-mes.log'
+              --aa, --autoaccept     auto accept station server certificates
+                                       Default: '_autoAcceptCerts'
+              --st, --opcstacktracemask=VALUE
+                                     the trace mask for the OPC stack. See github OPC .
+                                       NET stack for definitions.
+                                       Default: 285  (645)
+              --tm, --trustmyself    the server certificate is put into the trusted
+                                       certificate store automatically.
+                                       Default: True
+              --ap, --appcertstorepath=VALUE
+                                     the path where the own application cert should be
+                                       stored
+                                       Default :'CurrentUser\UA_MachineDefault'
+              --tp, --trustedcertstorepath=VALUE
+                                     the path of the trusted cert store
+                                       Default 'CertificateStores/trusted'
+              --rp, --rejectedcertstorepath=VALUE
+                                     the path of the rejected cert store
+                                       Default 'CertificateStores/rejected'
+              --ip, --issuercertstorepath=VALUE
+                                     the path of the trusted issuer cert store
+                                       Default 'CertificateStores/issuers'
+          -h, --help                 show this message and exit

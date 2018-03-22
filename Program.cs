@@ -1,19 +1,19 @@
 ﻿
 using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-
 namespace CfMes
 {
     using Opc.Ua;
     using Serilog;
+    using System.Globalization;
     using System.IO;
     using System.Reflection;
     using System.Text;
+    using static OpcApplicationConfiguration;
     using static Program;
 
     public enum StationStatus : int
@@ -55,12 +55,12 @@ namespace CfMes
 
         public bool IsDisconnected => _reconnectHandler != null;
 
-        public Station(string endpointUrl, ApplicationConfiguration applicationConfiguration, CancellationToken ct)
+        public Station(string endpointUrl, ApplicationConfiguration mesConfiguration, CancellationToken ct)
         {
             _status = StationStatus.Ready;
             _productSerialNumber = 1;
             _endpointUrl = endpointUrl;
-            _applicationConfiguration = applicationConfiguration;
+            _mesConfiguration = mesConfiguration;
             _endpoint = new ConfiguredEndpoint();
             _shutdownToken = ct;
             try
@@ -134,10 +134,10 @@ namespace CfMes
             {
                 Logger.Information($"Create session to endpoint {_endpointUrl}.");
                 _session = Session.Create(
-                    _applicationConfiguration,
+                    _mesConfiguration,
                     _endpoint,
                     true,
-                    _applicationConfiguration.ApplicationName,
+                    _mesConfiguration.ApplicationName,
                     CONNECT_TIMEOUT,
                     new UserIdentity(new AnonymousIdentityToken()),
                     null).Result;
@@ -425,7 +425,7 @@ namespace CfMes
         private ConfiguredEndpoint _endpoint = null;
         private Session _session = null;
         private Subscription _subscription = null;
-        private ApplicationConfiguration _applicationConfiguration = null;
+        private ApplicationConfiguration _mesConfiguration = null;
         private StationStatus _status;
         private SessionReconnectHandler _reconnectHandler = null;
         CancellationToken _shutdownToken;
@@ -433,7 +433,7 @@ namespace CfMes
 
     public class AssemblyStation : Station
     {
-        public AssemblyStation(string endpointUrl, ApplicationConfiguration applicationConfiguration, CancellationToken shutdownToken) : base(endpointUrl, applicationConfiguration, shutdownToken)
+        public AssemblyStation(string endpointUrl, ApplicationConfiguration mesConfiguration, CancellationToken shutdownToken) : base(endpointUrl, mesConfiguration, shutdownToken)
         {
             Logger.Information($"AssemblyStation URL is: {endpointUrl}");
         }
@@ -508,7 +508,7 @@ namespace CfMes
 
     public class TestStation : Station
     {
-        public TestStation(string endpointUrl, ApplicationConfiguration applicationConfiguration, CancellationToken shutdownToken) : base(endpointUrl, applicationConfiguration, shutdownToken)
+        public TestStation(string endpointUrl, ApplicationConfiguration mesConfiguration, CancellationToken shutdownToken) : base(endpointUrl, mesConfiguration, shutdownToken)
         {
             Logger.Information($"TestStation URL is: {endpointUrl}");
         }
@@ -583,7 +583,7 @@ namespace CfMes
 
     public class PackagingStation : Station
     {
-        public PackagingStation(string endpointUrl, ApplicationConfiguration applicationConfiguration, CancellationToken shutdownToken) : base(endpointUrl, applicationConfiguration, shutdownToken)
+        public PackagingStation(string endpointUrl, ApplicationConfiguration mesConfiguration, CancellationToken shutdownToken) : base(endpointUrl, mesConfiguration, shutdownToken)
         {
             Logger.Information($"PackagingStation URL is: {endpointUrl}");
         }
@@ -693,11 +693,6 @@ namespace CfMes
             //{
             //    Thread.Sleep(10000);
             //}
-            
-            Logger = new LoggerConfiguration()
-                .WriteTo.Console()
-                .MinimumLevel.Information()
-                .CreateLogger();
 
             MainAsync(args).Wait();
         }
@@ -720,18 +715,32 @@ namespace CfMes
                 { "ps|packagingstation=", $"the endpoint of the packagingstation.\nDefault: '{PackagingStationEndpointUrl}'", (string s) => PackagingStationEndpointUrl = s },
 
                 // OPC stack trace settings
-                { "lf|logfile=", $"the filename of the logfile to use.\nDefault: '{_logfileName}'", (string l) => _logfileName = l },
-                { "aa|autoaccept", "auto accept station server certificates\nDefault: '{_autoAcceptCerts}'", a => _autoAcceptCerts = a != null },
-                { "st|opcstacktracemask=", $"the trace mask for the OPC stack. See github OPC .NET stack for definitions.\n\nDefault: {_opcTraceMask:X}  ({_opcTraceMask})", (int i) => {
-                        if (i >= 0)
+                { "lf|logfile=", $"the filename of the logfile to use.\nDefault: '{_logFileName}'", (string l) => _logFileName = l },
+                { "ll|loglevel=", $"the loglevel to use (allowed: fatal, error, warn, info, debug, verbose).\nDefault: info", (string l) => {
+                        List<string> logLevels = new List<string> {"fatal", "error", "warn", "info", "debug", "verbose"};
+                        if (logLevels.Contains(l.ToLowerInvariant()))
                         {
-                            _opcTraceMask = i;
+                            _logLevel = l.ToLowerInvariant();
                         }
                         else
                         {
-                            throw new Mono.Options.OptionException("The OPC stack trace mask must be larger or equal 0.", "opcstacktracemask");
+                            throw new Mono.Options.OptionException("The loglevel must be one of: fatal, error, warn, info, debug, verbose", "loglevel");
                         }
                     }
+                },
+                { "aa|autoaccept", $"auto accept station server certificates\nDefault: '{AutoAcceptCerts}'", a => AutoAcceptCerts = a != null },
+                { "tm|trustmyself", $"the server certificate is put into the trusted certificate store automatically.\nDefault: {TrustMyself}", t => TrustMyself = t != null },
+
+                { "ap|appcertstorepath=", $"the path where the own application cert should be stored\nDefault :'{OpcOwnCertStorePath}'", (string s) => OpcOwnCertStorePath = s
+                },
+
+                { "tp|trustedcertstorepath=", $"the path of the trusted cert store\nDefault '{OpcTrustedCertStorePath}'", (string s) => OpcTrustedCertStorePath = s
+                },
+
+                { "rp|rejectedcertstorepath=", $"the path of the rejected cert store\nDefault '{OpcRejectedCertStorePath}'", (string s) => OpcRejectedCertStorePath = s
+                },
+
+                { "ip|issuercertstorepath=", $"the path of the trusted issuer cert store\nDefault '{OpcIssuerCertStorePath}'", (string s) => OpcIssuerCertStorePath = s
                 },
 
                 // misc
@@ -746,6 +755,9 @@ namespace CfMes
             }
             catch (Mono.Options.OptionException e)
             {
+                // initialize logging
+                InitLogging();
+
                 // show message
                 Logger.Fatal(e, "Error in command line options");
                 // show usage
@@ -753,6 +765,10 @@ namespace CfMes
                 return;
             }
 
+            // initialize logging
+            InitLogging();
+
+            // check args
             if (extraArgs.Count != 0 || shouldShowHelp)
             {
                 // show usage
@@ -763,47 +779,6 @@ namespace CfMes
             try
             {
                 StationControl = new SemaphoreSlim(1);
-
-                ApplicationInstance application = new ApplicationInstance();
-                application.ApplicationName = "Connectedfactory Manufacturing Execution System";
-                application.ApplicationType = ApplicationType.Client;
-                application.ConfigSectionName = "Opc.Ua.MES";
-
-                // load the application configuration
-                ApplicationConfiguration applicationConfiguration = await application.LoadApplicationConfiguration(false);
-
-                // check the application certificate
-                bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, 0);
-                if (!haveAppCertificate)
-                {
-                    Logger.Fatal("Application instance certificate invalid!");
-                    throw new Exception("Application instance certificate invalid!");
-                }
-
-                if (haveAppCertificate)
-                {
-                    applicationConfiguration.ApplicationUri = Utils.GetApplicationUriFromCertificate(applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate);
-                    if (applicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
-                    {
-                        _autoAcceptCerts = true;
-                    }
-                    applicationConfiguration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
-                }
-                else
-                {
-                    Logger.Warning("Missing application certificate, using unsecure connection.");
-                }
-
-                // configure OPC tracing
-                TraceConfiguration traceConfiguration = new TraceConfiguration();
-                traceConfiguration.OutputFilePath = _logfileName;
-                traceConfiguration.DeleteOnLoad = true;
-                traceConfiguration.TraceMasks = _opcTraceMask;
-                applicationConfiguration.TraceConfiguration = traceConfiguration;
-                applicationConfiguration.TraceConfiguration.ApplySettings();
-
-                // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0).Wait();
 
                 // allow canceling the connection process
                 try
@@ -821,9 +796,11 @@ namespace CfMes
                 Logger.Information("Connectedfactory Manufacturing Execution System starting up. Press CTRL-C to exit.");
 
                 // create stations
-                AssemblyStation = new AssemblyStation(_assemblyStationEndpointUrl, applicationConfiguration, _shutdownToken);
-                TestStation = new TestStation(_testStationEndpointUrl, applicationConfiguration, _shutdownToken);
-                PackagingStation = new PackagingStation(_packagingStationEndpointUrl, applicationConfiguration, _shutdownToken);
+                OpcApplicationConfiguration mesOpcConfiguration = new OpcApplicationConfiguration();
+                ApplicationConfiguration mesConfiguration = await mesOpcConfiguration.ConfigureAsync();
+                AssemblyStation = new AssemblyStation(_assemblyStationEndpointUrl, mesConfiguration, _shutdownToken);
+                TestStation = new TestStation(_testStationEndpointUrl, mesConfiguration, _shutdownToken);
+                PackagingStation = new PackagingStation(_packagingStationEndpointUrl, mesConfiguration, _shutdownToken);
 
                 // connect to all servers.
                 var stationConnections = new List<Task>
@@ -851,7 +828,7 @@ namespace CfMes
                     AssemblyStation.Execute();
                     StartProductionSlot();
                     StationControl.Release();
-               }
+                }
 
                 // wait for Ctrl-C
                 quitEvent.WaitOne(Timeout.Infinite);
@@ -944,26 +921,10 @@ namespace CfMes
             _timer = new Timer(MesLogic, null, PRODUCTION_SLOT_TIME, Timeout.Infinite);
         }
 
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs eventArgs)
-        {
-            if (eventArgs.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
-            {
-                eventArgs.Accept = _autoAcceptCerts;
-                if (_autoAcceptCerts)
-                {
-                    Logger.Debug($"Accepted Certificate: {eventArgs.Certificate.Subject}");
-                }
-                else
-                {
-                    Logger.Warning($"Rejected Certificate: {eventArgs.Certificate.Subject}");
-                }
-            }
-        }
-
-    /// <summary>
-    /// Usage message.
-    /// </summary>
-    private static void Usage(Mono.Options.OptionSet options)
+        /// <summary>
+        /// Usage message.
+        /// </summary>
+        private static void Usage(Mono.Options.OptionSet options)
         {
             // show some app description message
             Logger.Information($"Usage: {Assembly.GetEntryAssembly().GetName().Name}.exe [<options>]");
@@ -982,6 +943,67 @@ namespace CfMes
             return;
         }
 
+        /// <summary>
+        /// Initialize logging.
+        /// </summary>
+        private static void InitLogging()
+        {
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration();
+
+            // set the log level
+            switch (_logLevel)
+            {
+                case "fatal":
+                    loggerConfiguration.MinimumLevel.Fatal();
+                    OpcTraceToLoggerFatal = 0;
+                    break;
+                case "error":
+                    loggerConfiguration.MinimumLevel.Error();
+                    OpcStackTraceMask = OpcTraceToLoggerError = Utils.TraceMasks.Error;
+                    break;
+                case "warn":
+                    loggerConfiguration.MinimumLevel.Warning();
+                    OpcTraceToLoggerWarning = 0;
+                    break;
+                case "info":
+                    loggerConfiguration.MinimumLevel.Information();
+                    OpcStackTraceMask = OpcTraceToLoggerInformation = 0;
+                    break;
+                case "debug":
+                    loggerConfiguration.MinimumLevel.Debug();
+                    OpcStackTraceMask = OpcTraceToLoggerDebug =  Utils.TraceMasks.ServiceDetail | Utils.TraceMasks.OperationDetail | Utils.TraceMasks.Service |
+                        Utils.TraceMasks.StartStop | Utils.TraceMasks.ExternalSystem | Utils.TraceMasks.Security;
+                    break;
+                case "verbose":
+                    loggerConfiguration.MinimumLevel.Verbose();
+                    OpcStackTraceMask = OpcTraceToLoggerVerbose = Utils.TraceMasks.StackTrace | Utils.TraceMasks.Operation | Utils.TraceMasks.Information | Utils.TraceMasks.All;
+                    break;
+            }
+
+            // set logging sinks
+            loggerConfiguration.WriteTo.Console();
+
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("_GW_LOGP")))
+            {
+                _logFileName = Environment.GetEnvironmentVariable("_GW_LOGP");
+            }
+
+            if (!string.IsNullOrEmpty(_logFileName))
+            {
+                // configure rolling file sink
+                const int MAX_LOGFILE_SIZE = 1024 * 1024;
+                const int MAX_RETAINED_LOGFILES = 2;
+                loggerConfiguration.WriteTo.File(_logFileName, fileSizeLimitBytes: MAX_LOGFILE_SIZE, rollOnFileSizeLimit: true, retainedFileCountLimit: MAX_RETAINED_LOGFILES);
+            }
+
+            Logger = loggerConfiguration.CreateLogger();
+            Logger.Information($"Current directory is: {Directory.GetCurrentDirectory()}");
+            Logger.Information($"Log file is: {Utils.GetAbsoluteFilePath(_logFileName, true, false, false, true)}");
+            Logger.Information($"Log level is: {_logLevel}");
+            return;
+        }
+
+
         private const int PRODUCTION_SLOT_TIME = 1000;
 
         private static string _assemblyStationEndpointUrl = $"opc.tcp://{Utils.GetHostName()}:51210";
@@ -991,9 +1013,8 @@ namespace CfMes
         private static Timer _timer = null;
         private static CancellationTokenSource _shutdownSource = null;
         private static CancellationToken _shutdownToken;
-        private static int _opcTraceMask = Utils.TraceMasks.Error | Utils.TraceMasks.Security | Utils.TraceMasks.StackTrace | Utils.TraceMasks.StartStop;
-        private static string _logfileName = $"{Utils.GetHostName()}-MES.log";
-        private static bool _autoAcceptCerts = false;
         private static ulong _productionSlot = 0;
+        private static string _logFileName = $"{Utils.GetHostName()}-mes.log";
+        private static string _logLevel = "info";
     }
 }
