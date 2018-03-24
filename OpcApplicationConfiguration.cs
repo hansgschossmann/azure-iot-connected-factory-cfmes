@@ -25,7 +25,6 @@ namespace CfMes
             set => _trustMyself = value;
         }
 
-        // Enable Utils.TraceMasks.OperationDetail to get output for IoTHub telemetry operations. Current: 0x287 (647), with OperationDetail: 0x2C7 (711)
         public static int OpcStackTraceMask
         {
             get => _opcStackTraceMask;

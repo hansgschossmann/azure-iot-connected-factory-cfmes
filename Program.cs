@@ -729,7 +729,7 @@ namespace CfMes
                     }
                 },
                 { "aa|autoaccept", $"auto accept station server certificates\nDefault: '{AutoAcceptCerts}'", a => AutoAcceptCerts = a != null },
-                { "tm|trustmyself", $"the server certificate is put into the trusted certificate store automatically.\nDefault: {TrustMyself}", t => TrustMyself = t != null },
+                { "to|trustowncert", $"the cfmes certificate is put into the trusted certificate store automatically.\nDefault: {TrustMyself}", t => TrustMyself = t != null },
 
                 { "ap|appcertstorepath=", $"the path where the own application cert should be stored\nDefault :'{OpcOwnCertStorePath}'", (string s) => OpcOwnCertStorePath = s
                 },
@@ -760,6 +760,7 @@ namespace CfMes
 
                 // show message
                 Logger.Fatal(e, "Error in command line options");
+
                 // show usage
                 Usage(options);
                 return;
