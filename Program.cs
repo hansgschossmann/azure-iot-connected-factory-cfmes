@@ -303,6 +303,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling Execute method on endpoint URL {_endpointUrl}. Retry...");
                     Logger.Fatal(e, "Exception details:");
+                    Task.Delay(10000);
                 }
             }
         }
@@ -356,6 +357,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling OpenPressureReleaseValve method on endpoint URL {_endpointUrl}");
                     Logger.Fatal(e, "Exception details:");
+                    Task.Delay(10000);
                 }
             }
         }
@@ -410,6 +412,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling Reset method on endpoint URL {_endpointUrl}");
                     Logger.Fatal(e, "Exception details:");
+                    Task.Delay(10000);
                 }
             }
         }
