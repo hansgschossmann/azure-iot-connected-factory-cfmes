@@ -144,7 +144,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Debug(e, $"Failed to create session to endpoint {_endpointUrl}!");
+                Logger.Fatal(e, $"Failed to create session to endpoint {_endpointUrl}!");
             }
             if (_session != null)
             {
@@ -302,7 +302,7 @@ namespace CfMes
                 catch (Exception e)
                 {
                     Logger.Fatal($"Exception when calling Execute method on endpoint URL {_endpointUrl}. Retry...");
-                    Logger.Debug(e, "Exception details:");
+                    Logger.Fatal(e, "Exception details:");
                 }
             }
         }
@@ -355,7 +355,7 @@ namespace CfMes
                 catch (Exception e)
                 {
                     Logger.Fatal($"Exception when calling OpenPressureReleaseValve method on endpoint URL {_endpointUrl}");
-                    Logger.Debug(e, "Exception details:");
+                    Logger.Fatal(e, "Exception details:");
                 }
             }
         }
@@ -409,7 +409,7 @@ namespace CfMes
                 catch (Exception e)
                 {
                     Logger.Fatal($"Exception when calling Reset method on endpoint URL {_endpointUrl}");
-                    Logger.Debug(e, "Exception details:");
+                    Logger.Fatal(e, "Exception details:");
                 }
             }
         }
