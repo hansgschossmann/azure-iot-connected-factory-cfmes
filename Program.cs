@@ -27,39 +27,27 @@ namespace CfMes
 
     public class Station
     {
-        public string EndpointUrl
-        {
-            get => _endpointUrl;
-            set => _endpointUrl = value;
-        }
+        public string EndpointUrl { get; set; } = string.Empty;
 
-        public StationStatus Status
-        {
-            get => _status;
-            set => _status = value;
-        }
+        public StationStatus Status { get; set; }
 
-        public ulong ProductSerialNumber
-        {
-            get => _productSerialNumber;
-            set => _productSerialNumber = value;
-        }
+        public ulong ProductSerialNumber { get; set; }
 
-        public bool IsReady => _status == StationStatus.Ready;
+        public bool IsReady => Status == StationStatus.Ready;
 
-        public bool IsFault => _status == StationStatus.Fault;
+        public bool IsFault => Status == StationStatus.Fault;
 
-        public bool IsDone => _status == StationStatus.Done;
+        public bool IsDone => Status == StationStatus.Done;
 
-        public bool IsInProgress => _status == StationStatus.WorkInProgress;
+        public bool IsInProgress => Status == StationStatus.WorkInProgress;
 
         public bool IsDisconnected => _reconnectHandler != null;
 
         public Station(string endpointUrl, ApplicationConfiguration mesConfiguration, CancellationToken ct)
         {
-            _status = StationStatus.Ready;
-            _productSerialNumber = 1;
-            _endpointUrl = endpointUrl;
+            Status = StationStatus.Ready;
+            ProductSerialNumber = 1;
+            EndpointUrl = endpointUrl;
             _mesConfiguration = mesConfiguration;
             _endpoint = new ConfiguredEndpoint();
             _shutdownToken = ct;
@@ -91,22 +79,22 @@ namespace CfMes
                 if (!CreateSession())
                 {
                     Logger.Fatal($"Failed to create session to endpoint at {EndpointUrl}! Wait {RECONNECT_DELAY} seconds and retry...");
-                    await Task.Delay(RECONNECT_DELAY, _shutdownToken);
+                    await Task.Delay(RECONNECT_DELAY, _shutdownToken).ConfigureAwait(false);
                     continue;
                 }
 
                 try
                 {
                     // initialize the station status and fetch current product serial number
-                    await StationControl.WaitAsync();
-                    _status = (StationStatus)_session.ReadValue(STATIONSTATUS_NODEID).Value;
-                    _productSerialNumber = (ulong)_session.ReadValue(PRODUCTSERIALNUMBER_NODEID).Value;
+                    await StationControl.WaitAsync().ConfigureAwait(false);
+                    Status = (StationStatus)_session.ReadValue(STATIONSTATUS_NODEID).Value;
+                    ProductSerialNumber = (ulong)_session.ReadValue(PRODUCTSERIALNUMBER_NODEID).Value;
 
                     // start monitoring the status node
                     if (!StartStationStatusMonitoring(handler))
                     {
                         Logger.Error($"Failed to create monitored item for station status at {EndpointUrl}! Wait {RECONNECT_DELAY} seconds and retry...");
-                        await Task.Delay(RECONNECT_DELAY, _shutdownToken);
+                        await Task.Delay(RECONNECT_DELAY, _shutdownToken).ConfigureAwait(false);
                         continue;
                     }
                     break;
@@ -132,7 +120,7 @@ namespace CfMes
 
             try
             {
-                Logger.Information($"Create session to endpoint {_endpointUrl}.");
+                Logger.Information($"Create session to endpoint {EndpointUrl}.");
                 _session = Session.Create(
                     _mesConfiguration,
                     _endpoint,
@@ -144,7 +132,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Fatal(e, $"Failed to create session to endpoint {_endpointUrl}!");
+                Logger.Fatal(e, $"Failed to create session to endpoint {EndpointUrl}!");
             }
             if (_session != null)
             {
@@ -152,10 +140,10 @@ namespace CfMes
             }
             else
             {
-                Logger.Error($"Could not create session to endpoint {_endpointUrl}!");
+                Logger.Error($"Could not create session to endpoint {EndpointUrl}!");
                 return false;
             }
-            Logger.Information($"Session to endpoint {_endpointUrl} established.");
+            Logger.Information($"Session to endpoint {EndpointUrl} established.");
             return true;
         }
 
@@ -169,7 +157,7 @@ namespace CfMes
             {
                 try
                 {
-                    Logger.Information($"Start monitoring status node on endpoint {_endpointUrl}.");
+                    Logger.Information($"Start monitoring status node on endpoint {EndpointUrl}.");
                     // access the default subscription, add it to the session and only create it if successful
                     _subscription = _session.DefaultSubscription;
                     if (_session.AddSubscription(_subscription))
@@ -201,7 +189,7 @@ namespace CfMes
                         monitoredItem.Notification += handler;
                         _subscription.AddItem(monitoredItem);
                         _subscription.ApplyChanges();
-                        Logger.Information($"Now monitoring status node on endpoint {_endpointUrl}.");
+                        Logger.Information($"Now monitoring status node on endpoint {EndpointUrl}.");
                         return true;
                     }
                     else
@@ -224,11 +212,11 @@ namespace CfMes
         {
             if (e.Status != null && ServiceResult.IsNotGood(e.Status))
             {
-                Logger.Warning($"Endpoint: {_endpointUrl} Status: {e.Status}, Outstanding requests: {sender.OutstandingRequestCount},  Defunct requests: {sender.DefunctRequestCount}");
+                Logger.Warning($"Endpoint: {EndpointUrl} Status: {e.Status}, Outstanding requests: {sender.OutstandingRequestCount},  Defunct requests: {sender.DefunctRequestCount}");
 
                 if (_reconnectHandler == null)
                 {
-                    Logger.Information($"--- RECONNECTING to endpoint {_endpointUrl}  ---");
+                    Logger.Information($"--- RECONNECTING to endpoint {EndpointUrl}  ---");
                     _reconnectHandler = new SessionReconnectHandler();
                     _reconnectHandler.BeginReconnect(sender, RECONNECT_PERIOD, Client_ReconnectComplete);
                 }
@@ -247,22 +235,20 @@ namespace CfMes
             _reconnectHandler.Dispose();
             _reconnectHandler = null;
 
-            Logger.Information($"--- RECONNECTED to endpoint {_endpointUrl}  ---");
+            Logger.Information($"--- RECONNECTED to endpoint {EndpointUrl}  ---");
         }
-
 
         /// <summary>
         /// Calls the Execute method in the station.
         /// </summary>
         public void Execute()
         {
-            Random random = new Random();
             bool callSuccessfull = false;
             int retryCount = 1;
 
             VariantCollection inputArgumentsProductSerialNumber = new VariantCollection()
             {
-                _productSerialNumber
+                ProductSerialNumber
             };
 
             while (!callSuccessfull && !_shutdownToken.IsCancellationRequested)
@@ -277,11 +263,9 @@ namespace CfMes
                     }
                     if (retryCount++ > 1)
                     {
-                        Logger.Warning($"Retry {retryCount}th time to call Execute method on endpoint {_endpointUrl}.");
+                        Logger.Warning($"Retry {retryCount}th time to call Execute method on endpoint {EndpointUrl}.");
                     }
                     CallMethodRequestCollection requests = new CallMethodRequestCollection();
-                    CallMethodResultCollection results;
-                    DiagnosticInfoCollection diagnosticInfos = null;
                     CallMethodRequest request = new CallMethodRequest
                     {
                         ObjectId = new NodeId("Methods", 2),
@@ -289,10 +273,10 @@ namespace CfMes
                     };
                     request.InputArguments = inputArgumentsProductSerialNumber;
                     requests.Add(request);
-                    ResponseHeader responseHeader = _session.Call(null, requests, out results, out diagnosticInfos);
+                    ResponseHeader responseHeader = _session.Call(null, requests, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
                     if (StatusCode.IsBad(results[0].StatusCode))
                     {
-                        Logger.Error($"Execute call was not successfull on endpoint URL {_endpointUrl} (status: '{results[0].StatusCode}'. Retry...");
+                        Logger.Error($"Execute call was not successfull on endpoint URL {EndpointUrl} (status: '{results[0].StatusCode}'. Retry...");
                     }
                     else
                     {
@@ -301,7 +285,7 @@ namespace CfMes
                 }
                 catch (Exception e)
                 {
-                    Logger.Fatal($"Exception when calling Execute method on endpoint URL {_endpointUrl}. Retry...");
+                    Logger.Fatal($"Exception when calling Execute method on endpoint URL {EndpointUrl}. Retry...");
                     Logger.Fatal(e, "Exception details:");
                     Task.Delay(10000, _shutdownToken).Wait();
                 }
@@ -313,7 +297,6 @@ namespace CfMes
         /// </summary>
         public void OpenPressureReleaseValve()
         {
-            Random random = new Random();
             bool callSuccessfull = false;
             int retryCount = 1;
 
@@ -331,11 +314,9 @@ namespace CfMes
                     }
                     if (retryCount++ > 1)
                     {
-                        Logger.Warning($"Retry {retryCount}th time to call OpenPressureReleaseValve method on endpoint {_endpointUrl}.");
+                        Logger.Warning($"Retry {retryCount}th time to call OpenPressureReleaseValve method on endpoint {EndpointUrl}.");
                     }
                     CallMethodRequestCollection requests = new CallMethodRequestCollection();
-                    CallMethodResultCollection results;
-                    DiagnosticInfoCollection diagnosticInfos = null;
                     CallMethodRequest request = new CallMethodRequest
                     {
                         ObjectId = new NodeId("Methods", 2),
@@ -343,10 +324,10 @@ namespace CfMes
                     };
                     request.InputArguments = inputArguments;
                     requests.Add(request);
-                    ResponseHeader responseHeader = _session.Call(null, requests, out results, out diagnosticInfos);
+                    ResponseHeader responseHeader = _session.Call(null, requests, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
                     if (StatusCode.IsBad(results[0].StatusCode))
                     {
-                        Logger.Error($"OpenPressureReleaseValve call was not successfull on endpoint URL {_endpointUrl} (status: '{results[0].StatusCode}'");
+                        Logger.Error($"OpenPressureReleaseValve call was not successfull on endpoint URL {EndpointUrl} (status: '{results[0].StatusCode}'");
                     }
                     else
                     {
@@ -355,20 +336,18 @@ namespace CfMes
                 }
                 catch (Exception e)
                 {
-                    Logger.Fatal($"Exception when calling OpenPressureReleaseValve method on endpoint URL {_endpointUrl}");
+                    Logger.Fatal($"Exception when calling OpenPressureReleaseValve method on endpoint URL {EndpointUrl}");
                     Logger.Fatal(e, "Exception details:");
                     Task.Delay(10000, _shutdownToken).Wait();
                 }
             }
         }
 
-
         /// <summary>
         /// Calls the Reset method in the station. Put the station in ready state.
         /// </summary>
         public void Reset()
         {
-            Random random = new Random();
             bool callSuccessfull = false;
             int retryCount = 1;
 
@@ -386,11 +365,9 @@ namespace CfMes
                     }
                     if (retryCount++ > 1)
                     {
-                        Logger.Warning($"Retry {retryCount}th time to call Reset method on endpoint {_endpointUrl}.");
+                        Logger.Warning($"Retry {retryCount}th time to call Reset method on endpoint {EndpointUrl}.");
                     }
                     CallMethodRequestCollection requests = new CallMethodRequestCollection();
-                    CallMethodResultCollection results;
-                    DiagnosticInfoCollection diagnosticInfos = null;
                     CallMethodRequest request = new CallMethodRequest
                     {
                         ObjectId = new NodeId("Methods", 2),
@@ -398,10 +375,10 @@ namespace CfMes
                     };
                     request.InputArguments = inputArguments;
                     requests.Add(request);
-                    ResponseHeader responseHeader = _session.Call(null, requests, out results, out diagnosticInfos);
+                    ResponseHeader responseHeader = _session.Call(null, requests, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
                     if (StatusCode.IsBad(results[0].StatusCode))
                     {
-                        Logger.Error($"Reset call was not successfull on endpoint URL {_endpointUrl} (status: '{results[0].StatusCode}'");
+                        Logger.Error($"Reset call was not successfull on endpoint URL {EndpointUrl} (status: '{results[0].StatusCode}'");
                     }
                     else
                     {
@@ -410,7 +387,7 @@ namespace CfMes
                 }
                 catch (Exception e)
                 {
-                    Logger.Fatal($"Exception when calling Reset method on endpoint URL {_endpointUrl}");
+                    Logger.Fatal($"Exception when calling Reset method on endpoint URL {EndpointUrl}");
                     Logger.Fatal(e, "Exception details:");
                     Task.Delay(10000, _shutdownToken).Wait();
                 }
@@ -422,16 +399,12 @@ namespace CfMes
         private const string STATIONSTATUS_NODEID = "ns=2;s=Status";
         private const string PRODUCTSERIALNUMBER_NODEID = "ns=2;s=ProductSerialNumber";
         private const int RECONNECT_PERIOD = 10 * 1000;
-
-        private ulong _productSerialNumber;
-        private string _endpointUrl = string.Empty;
-        private ConfiguredEndpoint _endpoint = null;
+        private readonly ConfiguredEndpoint _endpoint = null;
         private Session _session = null;
         private Subscription _subscription = null;
-        private ApplicationConfiguration _mesConfiguration = null;
-        private StationStatus _status;
+        private readonly ApplicationConfiguration _mesConfiguration = null;
         private SessionReconnectHandler _reconnectHandler = null;
-        CancellationToken _shutdownToken;
+        private readonly CancellationToken _shutdownToken;
     }
 
     public class AssemblyStation : Station
@@ -446,19 +419,17 @@ namespace CfMes
         /// </summary>
         public async Task ConnectStationAsync()
         {
-            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification));
+            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification)).ConfigureAwait(false);
             Reset();
         }
 
         private void MonitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs eventArgs)
         {
-
             try
             {
                 StationControl.Wait();
                 MonitoredItemNotification change = eventArgs.NotificationValue as MonitoredItemNotification;
                 Status = (StationStatus)change.Value.Value;
-
 
                 Logger.Verbose($"AssemblyStation: status changed to {Status}");
 
@@ -483,7 +454,7 @@ namespace CfMes
                         {
                             // station is at fault state, wait some time to simulate manual intervention before reseting
                             Logger.Information("AssemblyStation: <<Fault detected>>");
-                            await Task.Delay(FAULT_DELAY);
+                            await Task.Delay(FAULT_DELAY).ConfigureAwait(false);
                             Logger.Information("AssemblyStation: <<Fix Fault>>");
                             Reset();
                         });
@@ -521,16 +492,14 @@ namespace CfMes
         /// </summary>
         public async Task ConnectStationAsync()
         {
-            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification));
+            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification)).ConfigureAwait(false);
         }
-
 
         /// <summary>
         /// Station status change handler.
         /// </summary>
         private void MonitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs eventArgs)
         {
-
             try
             {
                 StationControl.Wait();
@@ -555,7 +524,7 @@ namespace CfMes
                             Task.Run(async () =>
                             {
                                 Logger.Information("TestStation: <<Fault detected>>");
-                                await Task.Delay(FAULT_DELAY);
+                                await Task.Delay(FAULT_DELAY).ConfigureAwait(false);
                                 Logger.Information("TestStation: <<Fix Fault>>");
                                 Reset();
                             });
@@ -596,7 +565,7 @@ namespace CfMes
         /// </summary>
         public async Task ConnectStationAsync()
         {
-            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification));
+            await ConnectStationOpcServerAsync(new MonitoredItemNotificationEventHandler(MonitoredItem_Notification)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -633,7 +602,7 @@ namespace CfMes
                                 Task.Run(async () =>
                                 {
                                     Logger.Information("PackagingStation: <<Fault detected>>");
-                                    await Task.Delay(FAULT_DELAY);
+                                    await Task.Delay(FAULT_DELAY).ConfigureAwait(false);
                                     Logger.Information("PackagingStation: <<Fix Fault>>");
                                     Reset();
                                 });
@@ -660,23 +629,11 @@ namespace CfMes
     {
         public const int FAULT_DELAY = 60 * 1000;
 
-        public static string AssemblyStationEndpointUrl
-        {
-            get => _assemblyStationEndpointUrl;
-            set => _assemblyStationEndpointUrl = value;
-        }
+        public static string AssemblyStationEndpointUrl { get; set; } = $"opc.tcp://{Utils.GetHostName()}:51210";
 
-        public static string TestStationEndpointUrl
-        {
-            get => _testStationEndpointUrl;
-            set => _testStationEndpointUrl = value;
-        }
+        public static string TestStationEndpointUrl { get; set; } = $"opc.tcp://{Utils.GetHostName()}:51211";
 
-        public static string PackagingStationEndpointUrl
-        {
-            get => _packagingStationEndpointUrl;
-            set => _packagingStationEndpointUrl = value;
-        }
+        public static string PackagingStationEndpointUrl { get; set; } = $"opc.tcp://{Utils.GetHostName()}:51212";
 
         public static SemaphoreSlim StationControl;
         public static AssemblyStation AssemblyStation = null;
@@ -719,7 +676,7 @@ namespace CfMes
 
                 // OPC stack trace settings
                 { "lf|logfile=", $"the filename of the logfile to use.\nDefault: '{_logFileName}'", (string l) => _logFileName = l },
-                { "ll|loglevel=", $"the loglevel to use (allowed: fatal, error, warn, info, debug, verbose).\nDefault: info", (string l) => {
+                { "ll|loglevel=", "the loglevel to use (allowed: fatal, error, warn, info, debug, verbose).\nDefault: info", (string l) => {
                         List<string> logLevels = new List<string> {"fatal", "error", "warn", "info", "debug", "verbose"};
                         if (logLevels.Contains(l.ToLowerInvariant()))
                         {
@@ -801,17 +758,17 @@ namespace CfMes
 
                 // create stations
                 OpcApplicationConfiguration mesOpcConfiguration = new OpcApplicationConfiguration();
-                ApplicationConfiguration mesConfiguration = await mesOpcConfiguration.ConfigureAsync();
-                AssemblyStation = new AssemblyStation(_assemblyStationEndpointUrl, mesConfiguration, _shutdownToken);
-                TestStation = new TestStation(_testStationEndpointUrl, mesConfiguration, _shutdownToken);
-                PackagingStation = new PackagingStation(_packagingStationEndpointUrl, mesConfiguration, _shutdownToken);
+                ApplicationConfiguration mesConfiguration = await mesOpcConfiguration.ConfigureAsync().ConfigureAwait(false);
+                AssemblyStation = new AssemblyStation(AssemblyStationEndpointUrl, mesConfiguration, _shutdownToken);
+                TestStation = new TestStation(TestStationEndpointUrl, mesConfiguration, _shutdownToken);
+                PackagingStation = new PackagingStation(PackagingStationEndpointUrl, mesConfiguration, _shutdownToken);
 
                 // connect to all servers.
                 var stationConnections = new List<Task>
                 {
-                    Task.Run(async () => await AssemblyStation.ConnectStationAsync()),
-                    Task.Run(async () => await TestStation.ConnectStationAsync()),
-                    Task.Run(async () => await PackagingStation.ConnectStationAsync())
+                    Task.Run(async () => await AssemblyStation.ConnectStationAsync().ConfigureAwait(false)),
+                    Task.Run(async () => await TestStation.ConnectStationAsync().ConfigureAwait(false)),
+                    Task.Run(async () => await PackagingStation.ConnectStationAsync().ConfigureAwait(false))
                 };
 
                 try
@@ -828,7 +785,7 @@ namespace CfMes
                     // continue production with the last product serial number
                     AssemblyStation.ProductSerialNumber = Math.Max(AssemblyStation.ProductSerialNumber, Math.Max(TestStation.ProductSerialNumber, PackagingStation.ProductSerialNumber)) + 1;
                     Logger.Information($"MES: Start production line by assembling product with product serial number #{AssemblyStation.ProductSerialNumber}");
-                    await StationControl.WaitAsync();
+                    await StationControl.WaitAsync().ConfigureAwait(false);
                     AssemblyStation.Execute();
                     StartProductionSlot();
                     StationControl.Release();
@@ -910,10 +867,7 @@ namespace CfMes
             }
 
             // free resources
-            if (_timer != null)
-            {
-                _timer.Dispose();
-            }
+            _timer?.Dispose();
 
             // give up on shutdown
             if (_shutdownToken.IsCancellationRequested)
@@ -1007,12 +961,7 @@ namespace CfMes
             return;
         }
 
-
         private const int PRODUCTION_SLOT_TIME = 1000;
-
-        private static string _assemblyStationEndpointUrl = $"opc.tcp://{Utils.GetHostName()}:51210";
-        private static string _testStationEndpointUrl = $"opc.tcp://{Utils.GetHostName()}:51211";
-        private static string _packagingStationEndpointUrl = $"opc.tcp://{Utils.GetHostName()}:51212";
 
         private static Timer _timer = null;
         private static CancellationTokenSource _shutdownSource = null;

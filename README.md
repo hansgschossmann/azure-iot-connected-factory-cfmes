@@ -15,35 +15,35 @@ The command line usage is:
         Options:
               --as, --assemblystation=VALUE
                                      the endpoint of the assemblystation.
-                                       Default: 'opc.tcp://<hostname>:51210'
+                                       Default: 'opc.tcp://<assemblystation>:51210'
               --ts, --teststation=VALUE
                                      the endpoint of the teststation.
-                                       Default: 'opc.tcp://<hostname>:51211'
+                                       Default: 'opc.tcp://<teststation>:51211'
               --ps, --packagingstation=VALUE
                                      the endpoint of the packagingstation.
-                                       Default: 'opc.tcp://<hostname>:51212'
+                                       Default: 'opc.tcp://<packagingstation>:51212'
               --lf, --logfile=VALUE  the filename of the logfile to use.
                                        Default: '<hostname>-mes.log'
+              --ll, --loglevel=VALUE the loglevel to use (allowed: fatal, error, warn,
+                                       info, debug, verbose).
+                                       Default: info
               --aa, --autoaccept     auto accept station server certificates
-                                       Default: '_autoAcceptCerts'
-              --st, --opcstacktracemask=VALUE
-                                     the trace mask for the OPC stack. See github OPC .
-                                       NET stack for definitions.
-                                       Default: 285  (645)
-              --tm, --trustmyself    the server certificate is put into the trusted
+                                       Default: 'False'
+              --to, --trustowncert   the cfmes certificate is put into the trusted
                                        certificate store automatically.
-                                       Default: True
+                                       Default: False
               --ap, --appcertstorepath=VALUE
                                      the path where the own application cert should be
                                        stored
-                                       Default :'CurrentUser\UA_MachineDefault'
+                                       Default :'pki/own'
               --tp, --trustedcertstorepath=VALUE
                                      the path of the trusted cert store
-                                       Default 'CertificateStores/trusted'
+                                       Default 'pki/trusted'
               --rp, --rejectedcertstorepath=VALUE
                                      the path of the rejected cert store
-                                       Default 'CertificateStores/rejected'
+                                       Default 'pki/rejected'
               --ip, --issuercertstorepath=VALUE
                                      the path of the trusted issuer cert store
-                                       Default 'CertificateStores/issuers'
+                                       Default 'pki/issuer'
           -h, --help                 show this message and exit
+
