@@ -91,7 +91,7 @@ namespace CfMes
                 if (!CreateSession())
                 {
                     Logger.Fatal($"Failed to create session to endpoint at {EndpointUrl}! Wait {RECONNECT_DELAY} seconds and retry...");
-                    await Task.Delay(RECONNECT_DELAY);
+                    await Task.Delay(RECONNECT_DELAY, _shutdownToken);
                     continue;
                 }
 
@@ -106,7 +106,7 @@ namespace CfMes
                     if (!StartStationStatusMonitoring(handler))
                     {
                         Logger.Error($"Failed to create monitored item for station status at {EndpointUrl}! Wait {RECONNECT_DELAY} seconds and retry...");
-                        await Task.Delay(RECONNECT_DELAY);
+                        await Task.Delay(RECONNECT_DELAY, _shutdownToken);
                         continue;
                     }
                     break;
@@ -272,7 +272,7 @@ namespace CfMes
                     if (_reconnectHandler != null)
                     {
                         Logger.Debug($"In reconnect. Wait {RECONNECT_PERIOD} msec till retry calling Execute method.");
-                        Task.Delay(RECONNECT_PERIOD, _shutdownToken);
+                        Task.Delay(RECONNECT_PERIOD, _shutdownToken).Wait();
                         continue;
                     }
                     if (retryCount++ > 1)
@@ -303,7 +303,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling Execute method on endpoint URL {_endpointUrl}. Retry...");
                     Logger.Fatal(e, "Exception details:");
-                    Task.Delay(10000);
+                    Task.Delay(10000, _shutdownToken).Wait();
                 }
             }
         }
@@ -326,7 +326,7 @@ namespace CfMes
                     if (_reconnectHandler != null)
                     {
                         Logger.Debug($"In reconnect. Wait {RECONNECT_PERIOD} msec till retry calling OpenPressureReleaseValve method.");
-                        Task.Delay(RECONNECT_PERIOD, _shutdownToken);
+                        Task.Delay(RECONNECT_PERIOD, _shutdownToken).Wait();
                         continue;
                     }
                     if (retryCount++ > 1)
@@ -357,7 +357,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling OpenPressureReleaseValve method on endpoint URL {_endpointUrl}");
                     Logger.Fatal(e, "Exception details:");
-                    Task.Delay(10000);
+                    Task.Delay(10000, _shutdownToken).Wait();
                 }
             }
         }
@@ -381,7 +381,7 @@ namespace CfMes
                     if (_reconnectHandler != null)
                     {
                         Logger.Debug($"In reconnect. Wait {RECONNECT_PERIOD} msec till retry calling Reset method.");
-                        Task.Delay(RECONNECT_PERIOD, _shutdownToken);
+                        Task.Delay(RECONNECT_PERIOD, _shutdownToken).Wait();
                         continue;
                     }
                     if (retryCount++ > 1)
@@ -412,7 +412,7 @@ namespace CfMes
                 {
                     Logger.Fatal($"Exception when calling Reset method on endpoint URL {_endpointUrl}");
                     Logger.Fatal(e, "Exception details:");
-                    Task.Delay(10000);
+                    Task.Delay(10000, _shutdownToken).Wait();
                 }
             }
         }
@@ -898,12 +898,12 @@ namespace CfMes
             {
                 if (AssemblyStation.IsDisconnected || TestStation.IsDisconnected || PackagingStation.IsDisconnected)
                 {
-                    Task.Delay(PRODUCTION_SLOT_TIME, _shutdownToken);
+                    Task.Delay(PRODUCTION_SLOT_TIME, _shutdownToken).Wait();
                     continue;
                 }
                 if (AssemblyStation.IsFault || TestStation.IsFault || PackagingStation.IsFault)
                 {
-                    Task.Delay(PRODUCTION_SLOT_TIME, _shutdownToken);
+                    Task.Delay(PRODUCTION_SLOT_TIME, _shutdownToken).Wait();
                     continue;
                 }
                 break;
