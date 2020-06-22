@@ -1,4 +1,4 @@
-FROM microsoft/dotnet:2.0-sdk-jessie
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1
 
 COPY . /build
 
