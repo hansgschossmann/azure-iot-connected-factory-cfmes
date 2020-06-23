@@ -1,10 +1,14 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1
+ARG base_tag=3.1-alpine
 
-COPY . /build
-
+# copy and publish app
+FROM mcr.microsoft.com/dotnet/core/sdk:${base_tag} AS build
 WORKDIR /build
-RUN dotnet restore
-RUN dotnet publish --configuration Release --output /build/out
+COPY . .
+RUN dotnet publish -c Release -o /build/out
 
-WORKDIR /build/out
-ENTRYPOINT ["dotnet", "/build/out/CfMes.dll"]
+# start app
+FROM mcr.microsoft.com/dotnet/core/runtime:${base_tag} AS runtime
+WORKDIR /app
+COPY --from=build /build/out .
+WORKDIR /appdata
+ENTRYPOINT ["dotnet", "/app/CfMes.dll"]
