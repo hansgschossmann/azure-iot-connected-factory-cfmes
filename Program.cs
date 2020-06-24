@@ -961,7 +961,7 @@ namespace CfMes
             return;
         }
 
-        private const int PRODUCTION_SLOT_TIME = 1000;
+        private const int PRODUCTION_SLOT_TIME = 10000;
 
         private static Timer _timer = null;
         private static CancellationTokenSource _shutdownSource = null;

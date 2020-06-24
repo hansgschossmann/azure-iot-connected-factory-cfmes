@@ -8,6 +8,7 @@ RUN dotnet publish -c Release -o /build/out
 
 # start app
 FROM mcr.microsoft.com/dotnet/core/runtime:${base_tag} AS runtime
+RUN apk add --no-cache tzdata
 WORKDIR /app
 COPY --from=build /build/out .
 WORKDIR /appdata
