@@ -431,7 +431,7 @@ namespace CfMes
                 MonitoredItemNotification change = eventArgs.NotificationValue as MonitoredItemNotification;
                 Status = (StationStatus)change.Value.Value;
 
-                Logger.Verbose($"AssemblyStation: status changed to {Status}");
+                Logger.Debug($"AssemblyStation: status changed to {Status}");
 
                 // now check what the status is
                 switch (Status)
@@ -445,7 +445,7 @@ namespace CfMes
 
                     case StationStatus.Discarded:
                         // product was automatically discarded by the station, reset
-                        Logger.Verbose($"AssemblyStation: #{ProductSerialNumber} discarded");
+                        Logger.Debug($"AssemblyStation: #{ProductSerialNumber} discarded");
                         Reset();
                         break;
 
@@ -506,16 +506,16 @@ namespace CfMes
                 MonitoredItemNotification change = eventArgs.NotificationValue as MonitoredItemNotification;
                 Status = (StationStatus)change.Value.Value;
 
-                Logger.Verbose($"TestStation: status changed to {Status}");
+                Logger.Debug($"TestStation: status changed to {Status}");
 
                 switch (Status)
                 {
                     case StationStatus.Done:
-                        Logger.Verbose($"TestStation: #{ProductSerialNumber} testing passed");
+                        Logger.Debug($"TestStation: #{ProductSerialNumber} testing passed");
                         break;
 
                     case StationStatus.Discarded:
-                        Logger.Verbose($"TestStation:  #{ProductSerialNumber} testing failed -> discard");
+                        Logger.Debug($"TestStation:  #{ProductSerialNumber} testing failed -> discard");
                         Reset();
                         break;
 
@@ -579,7 +579,7 @@ namespace CfMes
                     MonitoredItemNotification change = eventArgs.NotificationValue as MonitoredItemNotification;
                     Status = (StationStatus)change.Value.Value;
 
-                    Logger.Verbose($"PackagingStation: status changed to {Status}");
+                    Logger.Debug($"PackagingStation: status changed to {Status}");
 
                     switch (Status)
                     {
