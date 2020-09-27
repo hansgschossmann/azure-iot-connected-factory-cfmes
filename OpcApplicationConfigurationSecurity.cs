@@ -1,12 +1,11 @@
-﻿using Opc.Ua;
-using System;
-using System.Security.Cryptography.X509Certificates;
-
-namespace CfMes
+﻿namespace CfMes
 {
     using System.Collections.Generic;
     using System.IO;
     using System.Threading.Tasks;
+    using Opc.Ua;
+    using System;
+    using System.Security.Cryptography.X509Certificates;
     using static Program;
 
     /// <summary>
@@ -37,7 +36,7 @@ namespace CfMes
         public static string OpcIssuerCertStorePath { get; set; } = OpcIssuerCertDirectoryStorePathDefault;
 
         /// <summary>
-        /// Accept certs automatically.
+        /// Accept certs of the clients automatically.
         /// </summary>
         public static bool AutoAcceptCerts { get; set; } = false;
 
@@ -62,14 +61,14 @@ namespace CfMes
         /// <summary>
         /// Issuer certificates to add.
         /// </summary>
-        public static List<string> IssuerCertificateBase64Strings { get; } = null;
-        public static List<string> IssuerCertificateFileNames { get; } = null;
+        public static List<string> IssuerCertificateBase64Strings = null;
+        public static List<string> IssuerCertificateFileNames = null;
 
         /// <summary>
         /// Trusted certificates to add.
         /// </summary>
-        public static List<string> TrustedCertificateBase64Strings { get; } = null;
-        public static List<string> TrustedCertificateFileNames { get; } = null;
+        public static List<string> TrustedCertificateBase64Strings = null;
+        public static List<string> TrustedCertificateFileNames = null;
 
         /// <summary>
         /// CRL to update/install.
@@ -80,66 +79,73 @@ namespace CfMes
         /// <summary>
         /// Thumbprint of certificates to delete.
         /// </summary>
-        public static List<string> ThumbprintsToRemove { get; } = null;
+        public static List<string> ThumbprintsToRemove = null;
 
         /// <summary>
         /// Configures OPC stack certificates.
         /// </summary>
-        public static async Task InitApplicationSecurityAsync()
+        public async Task InitApplicationSecurityAsync()
         {
             // security configuration
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration();
-
-            // configure trusted issuer certificates store
-            ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates = new CertificateTrustList();
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+            {
+                // configure trusted issuer certificates store
+                TrustedIssuerCertificates = new CertificateTrustList()
+            };
             ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = CertificateStoreType.Directory;
             ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = OpcIssuerCertStorePath;
-            Logger.Information($"Trusted Issuer store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType}");
-            Logger.Information($"Trusted Issuer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath}");
+            _logger.Information($"Trusted Issuer store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType}");
+            _logger.Information($"Trusted Issuer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath}");
 
             // configure trusted peer certificates store
-            ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates = new CertificateTrustList();
-            ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType = CertificateStoreType.Directory;
-            ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath = OpcTrustedCertStorePath;
-            Logger.Information($"Trusted Peer Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType}");
-            Logger.Information($"Trusted Peer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
+            ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates = new CertificateTrustList
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = OpcTrustedCertStorePath
+            };
+            _logger.Information($"Trusted Peer Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType}");
+            _logger.Information($"Trusted Peer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
 
             // configure rejected certificates store
-            ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore = new CertificateTrustList();
-            ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-            ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath = OpcRejectedCertStorePath;
+            ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore = new CertificateTrustList
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = OpcRejectedCertStorePath
+            };
 
-            Logger.Information($"Rejected certificate store type is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StoreType}");
-            Logger.Information($"Rejected Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath}");
+            _logger.Information($"Rejected certificate store type is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StoreType}");
+            _logger.Information($"Rejected Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath}");
 
             // this is a security risk and should be set to true only for debugging purposes
             ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = false;
 
             // we allow SHA1 certificates for now as many OPC Servers still use them
             ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates = false;
-            Logger.Information($"Rejection of SHA1 signed certificates is {(ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates ? "enabled" : "disabled")}");
+            _logger.Information($"Rejection of SHA1 signed certificates is {(ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates ? "enabled" : "disabled")}");
 
             // we allow a minimum key size of 1024 bit, as many OPC UA servers still use them
             ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = 1024;
-            Logger.Information($"Minimum certificate key size set to {ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize}");
+            _logger.Information($"Minimum certificate key size set to {ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize}");
 
             // configure application certificate store
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier();
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType = OpcOwnCertStoreType;
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath = OpcOwnCertStorePath;
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName = ApplicationConfiguration.ApplicationName;
-            Logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
-            Logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
-            Logger.Information($"Application Certificate subject name is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName}");
+            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier
+            {
+                StoreType = OpcOwnCertStoreType,
+                StorePath = OpcOwnCertStorePath,
+                SubjectName = ApplicationConfiguration.ApplicationName
+            };
+            _logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
+            _logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
+            _logger.Information($"Application Certificate subject name is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName}");
 
             // handle cert validation
             if (AutoAcceptCerts)
             {
-                Logger.Warning("WARNING: Automatically accepting certificates. This is a security risk.");
+                _logger.Warning("WARNING: Automatically accepting certificates. This is a security risk.");
                 ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
             }
-            ApplicationConfiguration.CertificateValidator = new Opc.Ua.CertificateValidator();
-            ApplicationConfiguration.CertificateValidator.CertificateValidation += new Opc.Ua.CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            ApplicationConfiguration.CertificateValidator = new CertificateValidator();
+            ApplicationConfiguration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             // update security information
             await ApplicationConfiguration.CertificateValidator.Update(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
@@ -186,7 +192,7 @@ namespace CfMes
             {
                 if (!await UpdateApplicationCertificateAsync(NewCertificateBase64String, NewCertificateFileName, CertificatePassword, PrivateKeyBase64String, PrivateKeyFileName).ConfigureAwait(false))
                 {
-                    throw new Exception("Update/Setting of the application certificate failed.");
+                        throw new Exception("Update/Setting of the application certificate failed.");
                 }
             }
 
@@ -196,8 +202,8 @@ namespace CfMes
             // create a self signed certificate if there is none
             if (certificate == null)
             {
-                Logger.Information($"No existing Application certificate found. Create a self-signed Application certificate valid from yesterday for {CertificateFactory.defaultLifeTime} months,");
-                Logger.Information($"with a {CertificateFactory.defaultKeySize} bit key and {CertificateFactory.defaultHashSize} bit hash.");
+                _logger.Information($"No existing Application certificate found. Create a self-signed Application certificate valid from yesterday for {CertificateFactory.DefaultLifeTime} months,");
+                _logger.Information($"with a {CertificateFactory.DefaultKeySize} bit key and {CertificateFactory.DefaultHashSize} bit hash.");
                 certificate = CertificateFactory.CreateCertificate(
                     ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType,
                     ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath,
@@ -206,15 +212,15 @@ namespace CfMes
                     ApplicationConfiguration.ApplicationName,
                     ApplicationConfiguration.ApplicationName,
                     null,
-                    CertificateFactory.defaultKeySize,
+                    CertificateFactory.DefaultKeySize,
                     DateTime.UtcNow - TimeSpan.FromDays(1),
-                    CertificateFactory.defaultLifeTime,
-                    CertificateFactory.defaultHashSize,
+                    CertificateFactory.DefaultLifeTime,
+                    CertificateFactory.DefaultHashSize,
                     false,
                     null,
                     null
                     );
-                Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' created.");
+                    _logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' created.");
 
                 // update security information
                 ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate ?? throw new Exception("OPC UA application certificate can not be created! Cannot continue without it!");
@@ -222,10 +228,10 @@ namespace CfMes
             }
             else
             {
-                Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' found in the application certificate store.");
+                _logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' found in the application certificate store.");
             }
             ApplicationConfiguration.ApplicationUri = Utils.GetApplicationUriFromCertificate(certificate);
-            Logger.Information($"Application certificate is for ApplicationUri '{ApplicationConfiguration.ApplicationUri}', ApplicationName '{ApplicationConfiguration.ApplicationName}' and Subject is '{ApplicationConfiguration.ApplicationName}'");
+            _logger.Information($"Application certificate is for ApplicationUri '{ApplicationConfiguration.ApplicationUri}', ApplicationName '{ApplicationConfiguration.ApplicationName}' and Subject is '{ApplicationConfiguration.ApplicationName}'");
 
             // we make the default reference stack behavior configurable to put our own certificate into the trusted peer store, but only for self-signed certs
             // note: SecurityConfiguration.AddAppCertToTrustedStore only works for Application instance objects, which we do not have
@@ -235,12 +241,12 @@ namespace CfMes
                 try
                 {
                     using ICertificateStore trustedStore = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-                    Logger.Information($"Adding server certificate to trusted peer store. StorePath={ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
+                    _logger.Information($"Adding server certificate to trusted peer store. StorePath={ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
                     await trustedStore.Add(certificate).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    Logger.Warning(e, "Can not add server certificate to trusted peer store. Maybe it is already there.");
+                    _logger.Warning(e, "Can not add server certificate to trusted peer store. Maybe it is already there.");
                 }
             }
 
@@ -268,7 +274,7 @@ namespace CfMes
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "Error while loading private key.");
+                        _logger.Error(e, "Error while loading private key.");
                         return;
                     }
                 }
@@ -279,44 +285,44 @@ namespace CfMes
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Error while creating signing request.");
+                    _logger.Error(e, "Error while creating signing request.");
                     return;
                 }
-                Logger.Information("----------------------- CreateSigningRequest information ------------------");
-                Logger.Information($"ApplicationUri: {ApplicationConfiguration.ApplicationUri}");
-                Logger.Information($"ApplicationName: {ApplicationConfiguration.ApplicationName}");
-                Logger.Information($"ApplicationType: {ApplicationConfiguration.ApplicationType}");
-                Logger.Information($"ProductUri: {ApplicationConfiguration.ProductUri}");
+                _logger.Information("----------------------- CreateSigningRequest information ------------------");
+                _logger.Information($"ApplicationUri: {ApplicationConfiguration.ApplicationUri}");
+                _logger.Information($"ApplicationName: {ApplicationConfiguration.ApplicationName}");
+                _logger.Information($"ApplicationType: {ApplicationConfiguration.ApplicationType}");
+                _logger.Information($"ProductUri: {ApplicationConfiguration.ProductUri}");
                 if (ApplicationConfiguration.ApplicationType != ApplicationType.Client)
                 {
                     int serverNum = 0;
                     foreach (var endpoint in ApplicationConfiguration.ServerConfiguration.BaseAddresses)
                     {
-                        Logger.Information($"DiscoveryUrl[{serverNum++}]: {endpoint}");
+                        _logger.Information($"DiscoveryUrl[{serverNum++}]: {endpoint}");
                     }
                     foreach (var endpoint in ApplicationConfiguration.ServerConfiguration.AlternateBaseAddresses)
                     {
-                        Logger.Information($"DiscoveryUrl[{serverNum++}]: {endpoint}");
+                        _logger.Information($"DiscoveryUrl[{serverNum++}]: {endpoint}");
                     }
                     string[] serverCapabilities = ApplicationConfiguration.ServerConfiguration.ServerCapabilities.ToArray();
-                    Logger.Information($"ServerCapabilities: {string.Join(", ", serverCapabilities)}");
+                    _logger.Information($"ServerCapabilities: {string.Join(", ", serverCapabilities)}");
                 }
-                Logger.Information("CSR (base64 encoded):");
+                _logger.Information("CSR (base64 encoded):");
                 Console.WriteLine($"{ Convert.ToBase64String(certificateSigningRequest)}");
-                Logger.Information("---------------------------------------------------------------------------");
+                _logger.Information("---------------------------------------------------------------------------");
                 try
                 {
                     await File.WriteAllBytesAsync($"{ApplicationConfiguration.ApplicationName}.csr", certificateSigningRequest).ConfigureAwait(false);
-                    Logger.Information($"Binary CSR written to '{ApplicationConfiguration.ApplicationName}.csr'");
+                    _logger.Information($"Binary CSR written to '{ApplicationConfiguration.ApplicationName}.csr'");
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Error while writing .csr file.");
+                    _logger.Error(e, "Error while writing .csr file.");
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error in CSR creation");
+                _logger.Error(e, "Error in CSR creation");
             }
         }
 
@@ -331,25 +337,25 @@ namespace CfMes
                 using ICertificateStore certStore = ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore();
                 var certs = await certStore.Enumerate().ConfigureAwait(false);
                 int certNum = 1;
-                Logger.Information($"Trusted issuer store contains {certs.Count} certs");
+                _logger.Information($"Trusted issuer store contains {certs.Count} certs");
                 foreach (var cert in certs)
                 {
-                    Logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
+                    _logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
                 }
                 if (certStore.SupportsCRLs)
                 {
                     var crls = certStore.EnumerateCRLs();
                     int crlNum = 1;
-                    Logger.Information($"Trusted issuer store has {crls.Count} CRLs.");
+                    _logger.Information($"Trusted issuer store has {crls.Count} CRLs.");
                     foreach (var crl in certStore.EnumerateCRLs())
                     {
-                        Logger.Information($"{crlNum++:D2}: Issuer '{crl.Issuer}', Next update time '{crl.NextUpdateTime}'");
+                        _logger.Information($"{crlNum++:D2}: Issuer '{crl.Issuer}', Next update time '{crl.NextUpdateTime}'");
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error while trying to read information from trusted issuer store.");
+                _logger.Error(e, "Error while trying to read information from trusted issuer store.");
             }
 
             // show trusted peer certs
@@ -358,25 +364,25 @@ namespace CfMes
                 using ICertificateStore certStore = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
                 var certs = await certStore.Enumerate().ConfigureAwait(false);
                 int certNum = 1;
-                Logger.Information($"Trusted peer store contains {certs.Count} certs");
+                _logger.Information($"Trusted peer store contains {certs.Count} certs");
                 foreach (var cert in certs)
                 {
-                    Logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
+                    _logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
                 }
                 if (certStore.SupportsCRLs)
                 {
                     var crls = certStore.EnumerateCRLs();
                     int crlNum = 1;
-                    Logger.Information($"Trusted peer store has {crls.Count} CRLs.");
+                    _logger.Information($"Trusted peer store has {crls.Count} CRLs.");
                     foreach (var crl in certStore.EnumerateCRLs())
                     {
-                        Logger.Information($"{crlNum++:D2}: Issuer '{crl.Issuer}', Next update time '{crl.NextUpdateTime}'");
+                        _logger.Information($"{crlNum++:D2}: Issuer '{crl.Issuer}', Next update time '{crl.NextUpdateTime}'");
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error while trying to read information from trusted peer store.");
+                _logger.Error(e, "Error while trying to read information from trusted peer store.");
             }
 
             // show rejected peer certs
@@ -385,38 +391,38 @@ namespace CfMes
                 using ICertificateStore certStore = ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.OpenStore();
                 var certs = await certStore.Enumerate().ConfigureAwait(false);
                 int certNum = 1;
-                Logger.Information($"Rejected certificate store contains {certs.Count} certs");
+                _logger.Information($"Rejected certificate store contains {certs.Count} certs");
                 foreach (var cert in certs)
                 {
-                    Logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
+                    _logger.Information($"{certNum++:D2}: Subject '{cert.Subject}' (thumbprint: {cert.GetCertHashString()})");
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error while trying to read information from rejected certificate store.");
+                _logger.Error(e, "Error while trying to read information from rejected certificate store.");
             }
         }
 
         /// <summary>
         /// Event handler to validate certificates.
         /// </summary>
-        private static void CertificateValidator_CertificateValidation(Opc.Ua.CertificateValidator validator, Opc.Ua.CertificateValidationEventArgs e)
-        {
+        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+       {
             if (e.Error.StatusCode == Opc.Ua.StatusCodes.BadCertificateUntrusted)
             {
                 e.Accept = AutoAcceptCerts;
                 if (AutoAcceptCerts)
                 {
-                    Logger.Information($"Certificate '{e.Certificate.Subject}' will be trusted, because of corresponding command line option.");
+                    _logger.Information($"Certificate '{e.Certificate.Subject}' will be trusted, because of corresponding command line option.");
                 }
                 else
                 {
-                    Logger.Information($"Not trusting OPC application  with the certificate subject '{e.Certificate.Subject}'.");
-                    Logger.Information("If you want to trust this certificate, please copy it from the directory:");
-                    Logger.Information($"{ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath}/certs");
-                    Logger.Information("to the directory:");
-                    Logger.Information($"{ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}/certs");
-                    Logger.Information("Rejecting certificate for now.");
+                    _logger.Information($"Not trusting OPC application  with the certificate subject '{e.Certificate.Subject}'.");
+                    _logger.Information("If you want to trust this certificate, please copy it from the directory:");
+                    _logger.Information($"{OpcApplicationConfiguration.ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath}/certs");
+                    _logger.Information("to the directory:");
+                    _logger.Information($"{OpcApplicationConfiguration.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}/certs");
+                    _logger.Information("Rejecting certificate for now.");
                 }
             }
         }
@@ -424,20 +430,20 @@ namespace CfMes
         /// <summary>
         /// Delete certificates with the given thumbprints from the trusted peer and issuer certifiate store.
         /// </summary>
-        private static async Task<bool> RemoveCertificatesAsync(List<string> thumbprintsToRemove)
+        private async Task<bool> RemoveCertificatesAsync(List<string> thumbprintsToRemove)
         {
             bool result = true;
 
             if (thumbprintsToRemove.Count == 0)
             {
-                Logger.Error("There is no thumbprint specified for certificates to remove. Please check your command line options.");
+                _logger.Error("There is no thumbprint specified for certificates to remove. Please check your command line options.");
                 return false;
             }
 
             // search the trusted peer store and remove certificates with a specified thumbprint
             try
             {
-                Logger.Information("Starting to remove certificate(s) from trusted peer and trusted issuer store.");
+                _logger.Information("Starting to remove certificate(s) from trusted peer and trusted issuer store.");
                 using ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath);
                 foreach (var thumbprint in thumbprintsToRemove)
                 {
@@ -446,18 +452,18 @@ namespace CfMes
                     {
                         if (!await trustedStore.Delete(thumbprint).ConfigureAwait(false))
                         {
-                            Logger.Warning($"Failed to remove certificate with thumbprint '{thumbprint}' from the trusted peer store.");
+                            _logger.Warning($"Failed to remove certificate with thumbprint '{thumbprint}' from the trusted peer store.");
                         }
                         else
                         {
-                            Logger.Information($"Removed certificate with thumbprint '{thumbprint}' from the trusted peer store.");
+                            _logger.Information($"Removed certificate with thumbprint '{thumbprint}' from the trusted peer store.");
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error while trying to remove certificate(s) from the trusted peer store.");
+                _logger.Error(e, "Error while trying to remove certificate(s) from the trusted peer store.");
                 result = false;
             }
 
@@ -472,18 +478,18 @@ namespace CfMes
                     {
                         if (!await issuerStore.Delete(thumbprint).ConfigureAwait(false))
                         {
-                            Logger.Warning($"Failed to delete certificate with thumbprint '{thumbprint}' from the trusted issuer store.");
+                            _logger.Warning($"Failed to delete certificate with thumbprint '{thumbprint}' from the trusted issuer store.");
                         }
                         else
                         {
-                            Logger.Information($"Removed certificate with thumbprint '{thumbprint}' from the trusted issuer store.");
+                            _logger.Information($"Removed certificate with thumbprint '{thumbprint}' from the trusted issuer store.");
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Error while trying to remove certificate(s) from the trusted issuer store.");
+                _logger.Error(e, "Error while trying to remove certificate(s) from the trusted issuer store.");
                 result = false;
             }
             return result;
@@ -492,7 +498,7 @@ namespace CfMes
         /// <summary>
         /// Validate and add certificates to the trusted issuer or trusted peer store.
         /// </summary>
-        private static async Task<bool> AddCertificatesAsync(
+        private async Task<bool> AddCertificatesAsync(
             List<string> certificateBase64Strings,
             List<string> certificateFileNames,
             bool issuerCertificate = true)
@@ -501,12 +507,12 @@ namespace CfMes
 
             if (certificateBase64Strings?.Count == 0 && certificateFileNames?.Count == 0)
             {
-                Logger.Error("There is no certificate provided. Please check your command line options.");
+                _logger.Error("There is no certificate provided. Please check your command line options.");
                 return false;
             }
 
-            Logger.Information($"Starting to add certificate(s) to the {(issuerCertificate ? "trusted issuer" : "trusted peer")} store.");
-            X509Certificate2Collection certificatesToAdd = new X509Certificate2Collection();
+            _logger.Information($"Starting to add certificate(s) to the {(issuerCertificate ? "trusted issuer" : "trusted peer")} store.");
+            var certificatesToAdd = new X509Certificate2Collection();
             try
             {
                 // validate the input and build issuer cert collection
@@ -530,7 +536,7 @@ namespace CfMes
                         }
                         else
                         {
-                            Logger.Error($"The provided string '{certificateBase64String.Substring(0, 10)}...' is not a valid base64 string.");
+                            _logger.Error($"The provided string '{certificateBase64String.Substring(0, 10)}...' is not a valid base64 string.");
                             return false;
                         }
                     }
@@ -538,7 +544,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Error(e, "The issuer certificate data is invalid. Please check your command line options.");
+                _logger.Error(e, "The issuer certificate data is invalid. Please check your command line options.");
                 return false;
             }
 
@@ -553,18 +559,18 @@ namespace CfMes
                         try
                         {
                             await issuerStore.Add(certificateToAdd).ConfigureAwait(false);
-                            Logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' and thumbprint '{certificateToAdd.Thumbprint}' was added to the trusted issuer store.");
+                            _logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' and thumbprint '{certificateToAdd.Thumbprint}' was added to the trusted issuer store.");
                         }
                         catch (ArgumentException)
                         {
                             // ignore error if cert already exists in store
-                            Logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' already exists in trusted issuer store.");
+                            _logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' already exists in trusted issuer store.");
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Error while adding a certificate to the trusted issuer store.");
+                    _logger.Error(e, "Error while adding a certificate to the trusted issuer store.");
                     result = false;
                 }
             }
@@ -578,18 +584,18 @@ namespace CfMes
                         try
                         {
                             await trustedStore.Add(certificateToAdd).ConfigureAwait(false);
-                            Logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' and thumbprint '{certificateToAdd.Thumbprint}' was added to the trusted peer store.");
+                            _logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' and thumbprint '{certificateToAdd.Thumbprint}' was added to the trusted peer store.");
                         }
                         catch (ArgumentException)
                         {
                             // ignore error if cert already exists in store
-                            Logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' already exists in trusted peer store.");
+                            _logger.Information($"Certificate '{certificateToAdd.SubjectName.Name}' already exists in trusted peer store.");
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Error while adding a certificate to the trusted peer store.");
+                    _logger.Error(e, "Error while adding a certificate to the trusted peer store.");
                     result = false;
                 }
             }
@@ -599,18 +605,18 @@ namespace CfMes
         /// <summary>
         /// Update the CRL in the corresponding store.
         /// </summary>
-        private static async Task<bool> UpdateCrlAsync(string newCrlBase64String, string newCrlFileName)
+        private async Task<bool> UpdateCrlAsync(string newCrlBase64String, string newCrlFileName)
         {
             bool result = true;
 
             if (string.IsNullOrEmpty(newCrlBase64String) && string.IsNullOrEmpty(newCrlFileName))
             {
-                Logger.Error("There is no CRL specified. Please check your command line options.");
+                _logger.Error("There is no CRL specified. Please check your command line options.");
                 return false;
             }
 
             // validate input and create the new CRL
-            Logger.Information("Starting to update the current CRL.");
+            _logger.Information("Starting to update the current CRL.");
             X509CRL newCrl;
             try
             {
@@ -623,7 +629,7 @@ namespace CfMes
                     }
                     else
                     {
-                        Logger.Error($"The provided string '{newCrlBase64String.Substring(0, 10)}...' is not a valid base64 string.");
+                        _logger.Error($"The provided string '{newCrlBase64String.Substring(0, 10)}...' is not a valid base64 string.");
                         return false;
                     }
                 }
@@ -634,7 +640,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Error(e, "The new CRL data is invalid.");
+                _logger.Error(e, "The new CRL data is invalid.");
                 return false;
             }
 
@@ -650,7 +656,7 @@ namespace CfMes
                         if (Utils.CompareDistinguishedName(newCrl.Issuer, trustedCertificate.Subject) && newCrl.VerifySignature(trustedCertificate, false))
                         {
                             // the issuer of the new CRL is trusted. delete the crls of the issuer in the trusted store
-                            Logger.Information("Remove the current CRL from the trusted peer store.");
+                            _logger.Information("Remove the current CRL from the trusted peer store.");
                             trustedCrlIssuer = true;
                             var crlsToRemove = trustedStore.EnumerateCRLs(trustedCertificate);
                             foreach (var crlToRemove in crlsToRemove)
@@ -659,12 +665,12 @@ namespace CfMes
                                 {
                                     if (!trustedStore.DeleteCRL(crlToRemove))
                                     {
-                                        Logger.Warning($"Failed to remove CRL issued by '{crlToRemove.Issuer}' from the trusted peer store.");
+                                        _logger.Warning($"Failed to remove CRL issued by '{crlToRemove.Issuer}' from the trusted peer store.");
                                     }
                                 }
                                 catch (Exception e)
                                 {
-                                    Logger.Error(e, $"Error while removing the current CRL issued by '{crlToRemove.Issuer}' from the trusted peer store.");
+                                    _logger.Error(e, $"Error while removing the current CRL issued by '{crlToRemove.Issuer}' from the trusted peer store.");
                                     result = false;
                                 }
                             }
@@ -672,7 +678,7 @@ namespace CfMes
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "Error while removing the cureent CRL from the trusted peer store.");
+                        _logger.Error(e, "Error while removing the cureent CRL from the trusted peer store.");
                         result = false;
                     }
                 }
@@ -682,11 +688,11 @@ namespace CfMes
                     try
                     {
                         trustedStore.AddCRL(newCrl);
-                        Logger.Information($"The new CRL issued by '{newCrl.Issuer}' was added to the trusted peer store.");
+                        _logger.Information($"The new CRL issued by '{newCrl.Issuer}' was added to the trusted peer store.");
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "Error while adding the new CRL to the trusted peer store.");
+                        _logger.Error(e, "Error while adding the new CRL to the trusted peer store.");
                         result = false;
                     }
                 }
@@ -704,7 +710,7 @@ namespace CfMes
                         if (Utils.CompareDistinguishedName(newCrl.Issuer, issuerCertificate.Subject) && newCrl.VerifySignature(issuerCertificate, false))
                         {
                             // the issuer of the new CRL is trusted. delete the crls of the issuer in the trusted store
-                            Logger.Information("Remove the current CRL from the trusted issuer store.");
+                            _logger.Information("Remove the current CRL from the trusted issuer store.");
                             trustedCrlIssuer = true;
                             var crlsToRemove = issuerStore.EnumerateCRLs(issuerCertificate);
                             foreach (var crlToRemove in crlsToRemove)
@@ -713,12 +719,12 @@ namespace CfMes
                                 {
                                     if (!issuerStore.DeleteCRL(crlToRemove))
                                     {
-                                        Logger.Warning($"Failed to remove the current CRL issued by '{crlToRemove.Issuer}' from the trusted issuer store.");
+                                        _logger.Warning($"Failed to remove the current CRL issued by '{crlToRemove.Issuer}' from the trusted issuer store.");
                                     }
                                 }
                                 catch (Exception e)
                                 {
-                                    Logger.Error(e, $"Error while removing the current CRL issued by '{crlToRemove.Issuer}' from the trusted issuer store.");
+                                    _logger.Error(e, $"Error while removing the current CRL issued by '{crlToRemove.Issuer}' from the trusted issuer store.");
                                     result = false;
                                 }
                             }
@@ -726,7 +732,7 @@ namespace CfMes
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, "Error while removing the current CRL from the trusted issuer store.");
+                        _logger.Error(e, "Error while removing the current CRL from the trusted issuer store.");
                         result = false;
                     }
                 }
@@ -737,11 +743,11 @@ namespace CfMes
                     try
                     {
                         issuerStore.AddCRL(newCrl);
-                        Logger.Information($"The new CRL issued by '{newCrl.Issuer}' was added to the trusted issuer store.");
+                        _logger.Information($"The new CRL issued by '{newCrl.Issuer}' was added to the trusted issuer store.");
                     }
                     catch (Exception e)
                     {
-                        Logger.Error(e, $"Error while adding the new CRL issued by '{newCrl.Issuer}' to the trusted issuer store.");
+                        _logger.Error(e, $"Error while adding the new CRL issued by '{newCrl.Issuer}' to the trusted issuer store.");
                         result = false;
                     }
                 }
@@ -752,7 +758,7 @@ namespace CfMes
         /// <summary>
         /// Validate and update the application.
         /// </summary>
-        private static async Task<bool> UpdateApplicationCertificateAsync(
+        private async Task<bool> UpdateApplicationCertificateAsync(
             string newCertificateBase64String,
             string newCertificateFileName,
             string certificatePassword,
@@ -761,7 +767,7 @@ namespace CfMes
         {
             if (string.IsNullOrEmpty(newCertificateFileName) && string.IsNullOrEmpty(newCertificateBase64String))
             {
-                Logger.Error("There is no new application certificate data provided. Please check your command line options.");
+                _logger.Error("There is no new application certificate data provided. Please check your command line options.");
                 return false;
             }
 
@@ -778,7 +784,7 @@ namespace CfMes
                     }
                     else
                     {
-                        Logger.Error($"The provided string '{newCertificateBase64String.Substring(0, 10)}...' is not a valid base64 string.");
+                        _logger.Error($"The provided string '{newCertificateBase64String.Substring(0, 10)}...' is not a valid base64 string.");
                         return false;
                     }
                 }
@@ -789,12 +795,12 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Error(e, "The new application certificate data is invalid.");
+                _logger.Error(e, "The new application certificate data is invalid.");
                 return false;
             }
 
             // validate input and create the private key
-            Logger.Information("Start updating the current application certificate.");
+            _logger.Information("Start updating the current application certificate.");
             byte[] privateKey = null;
             try
             {
@@ -803,7 +809,7 @@ namespace CfMes
                     privateKey = new byte[privateKeyBase64String.Length * 3 / 4];
                     if (!Convert.TryFromBase64String(privateKeyBase64String, privateKey, out int written))
                     {
-                        Logger.Error($"The provided string '{privateKeyBase64String.Substring(0, 10)}...' is not a valid base64 string.");
+                        _logger.Error($"The provided string '{privateKeyBase64String.Substring(0, 10)}...' is not a valid base64 string.");
                         return false;
                     }
                 }
@@ -814,7 +820,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Error(e, "The private key data is invalid.");
+                _logger.Error(e, "The private key data is invalid.");
                 return false;
             }
 
@@ -827,17 +833,17 @@ namespace CfMes
                 hasApplicationCertificate = true;
                 currentApplicationCertificate = ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate;
                 currentSubjectName = currentApplicationCertificate.SubjectName.Name;
-                Logger.Information($"The current application certificate has SubjectName '{currentSubjectName}' and thumbprint '{currentApplicationCertificate.Thumbprint}'.");
+                _logger.Information($"The current application certificate has SubjectName '{currentSubjectName}' and thumbprint '{currentApplicationCertificate.Thumbprint}'.");
             }
             else
             {
-                Logger.Information("There is no existing application certificate.");
+                _logger.Information("There is no existing application certificate.");
             }
 
             // for a cert update subject names of current and new certificate must match
             if (hasApplicationCertificate && !Utils.CompareDistinguishedName(currentSubjectName, newCertificate.SubjectName.Name))
             {
-                Logger.Error($"The SubjectName '{newCertificate.SubjectName.Name}' of the new certificate doesn't match the current certificates SubjectName '{currentSubjectName}'.");
+                _logger.Error($"The SubjectName '{newCertificate.SubjectName.Name}' of the new certificate doesn't match the current certificates SubjectName '{currentSubjectName}'.");
                 return false;
             }
 
@@ -847,9 +853,9 @@ namespace CfMes
                 if (!Utils.CompareDistinguishedName(newCertificate.Subject, newCertificate.Issuer))
                 {
                     // verify the new certificate was signed by a trusted issuer or trusted peer
-                    CertificateValidator certValidator = new CertificateValidator();
-                    CertificateTrustList verificationTrustList = new CertificateTrustList();
-                    CertificateIdentifierCollection verificationCollection = new CertificateIdentifierCollection();
+                    var certValidator = new CertificateValidator();
+                    var verificationTrustList = new CertificateTrustList();
+                    var verificationCollection = new CertificateIdentifierCollection();
                     using (ICertificateStore issuerStore = CertificateStoreIdentifier.OpenStore(ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath))
                     {
                         var certs = await issuerStore.Enumerate().ConfigureAwait(false);
@@ -873,7 +879,7 @@ namespace CfMes
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Failed to verify integrity of the new certificate and the trusted issuer list.");
+                _logger.Error(e, "Failed to verify integrity of the new certificate and the trusted issuer list.");
                 return false;
             }
 
@@ -888,11 +894,11 @@ namespace CfMes
                     X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateFromPKCS12(privateKey, certificatePassword);
                     newCertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCertificate, certWithPrivateKey);
                     newCertFormat = "PFX";
-                    Logger.Information("The private key for the new certificate was passed in using PFX format.");
+                    _logger.Information("The private key for the new certificate was passed in using PFX format.");
                 }
                 catch
                 {
-                    Logger.Debug("Certificate file is not PFX");
+                    _logger.Debug("Certificate file is not PFX");
                 }
             }
             // check if new cert is PEM
@@ -902,11 +908,11 @@ namespace CfMes
                 {
                     newCertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCertificate, privateKey, certificatePassword);
                     newCertFormat = "PEM";
-                    Logger.Information("The private key for the new certificate was passed in using PEM format.");
+                    _logger.Information("The private key for the new certificate was passed in using PEM format.");
                 }
                 catch
                 {
-                    Logger.Debug("Certificate file is not PEM");
+                    _logger.Debug("Certificate file is not PEM");
                 }
             }
             if (string.IsNullOrEmpty(newCertFormat))
@@ -922,12 +928,12 @@ namespace CfMes
                     }
                     else
                     {
-                        Logger.Error("There is no existing application certificate we can use to extract the private key. You need to pass in a private key using PFX or PEM format.");
+                        _logger.Error("There is no existing application certificate we can use to extract the private key. You need to pass in a private key using PFX or PEM format.");
                     }
                 }
                 catch
                 {
-                    Logger.Debug("Application certificate format is not DER");
+                    _logger.Debug("Application certificate format is not DER");
                 }
             }
 
@@ -936,7 +942,7 @@ namespace CfMes
             {
                 if (string.IsNullOrEmpty(newCertFormat))
                 {
-                    Logger.Error("The provided format of the private key is not supported (must be PEM or PFX) or the provided cert password is wrong.");
+                    _logger.Error("The provided format of the private key is not supported (must be PEM or PFX) or the provided cert password is wrong.");
                     return false;
                 }
             }
@@ -944,7 +950,7 @@ namespace CfMes
             {
                 if (string.IsNullOrEmpty(newCertFormat))
                 {
-                    Logger.Error("There is no application certificate we can update and for the new application certificate there was not usable private key (must be PEM or PFX format) provided or the provided cert password is wrong.");
+                    _logger.Error("There is no application certificate we can update and for the new application certificate there was not usable private key (must be PEM or PFX format) provided or the provided cert password is wrong.");
                     return false;
                 }
             }
@@ -952,26 +958,26 @@ namespace CfMes
             // remove the existing and add the new application cert
             using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath))
             {
-                Logger.Information("Remove the existing application certificate.");
+                _logger.Information("Remove the existing application certificate.");
                 try
                 {
                     if (hasApplicationCertificate && !await appStore.Delete(currentApplicationCertificate.Thumbprint).ConfigureAwait(false))
                     {
-                        Logger.Warning($"Removing the existing application certificate with thumbprint '{currentApplicationCertificate.Thumbprint}' failed.");
+                        _logger.Warning($"Removing the existing application certificate with thumbprint '{currentApplicationCertificate.Thumbprint}' failed.");
                     }
                 }
                 catch
                 {
-                    Logger.Warning("Failed to remove the existing application certificate from the ApplicationCertificate store.");
+                    _logger.Warning("Failed to remove the existing application certificate from the ApplicationCertificate store.");
                 }
                 try
                 {
                     await appStore.Add(newCertificateWithPrivateKey).ConfigureAwait(false);
-                    Logger.Information($"The new application certificate '{newCertificateWithPrivateKey.SubjectName.Name}' and thumbprint '{newCertificateWithPrivateKey.Thumbprint}' was added to the application certificate store.");
+                    _logger.Information($"The new application certificate '{newCertificateWithPrivateKey.SubjectName.Name}' and thumbprint '{newCertificateWithPrivateKey.Thumbprint}' was added to the application certificate store.");
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Failed to add the new application certificate to the application certificate store.");
+                    _logger.Error(e, "Failed to add the new application certificate to the application certificate store.");
                     return false;
                 }
             }
@@ -979,13 +985,13 @@ namespace CfMes
             // update the application certificate
             try
             {
-                Logger.Information($"Activating the new application certificate with thumbprint '{newCertificateWithPrivateKey.Thumbprint}'.");
+                _logger.Information($"Activating the new application certificate with thumbprint '{newCertificateWithPrivateKey.Thumbprint}'.");
                 ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate = newCertificate;
                 await ApplicationConfiguration.CertificateValidator.UpdateCertificate(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Logger.Error(e, "Failed to activate the new application certificate.");
+                _logger.Error(e, "Failed to activate the new application certificate.");
                 return false;
             }
 

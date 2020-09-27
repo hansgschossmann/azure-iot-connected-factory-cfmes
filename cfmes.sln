@@ -5,10 +5,14 @@ VisualStudioVersion = 16.0.30204.135
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{99F0F8B6-79F2-45FB-A5B7-5A3CD731A43D}"
 	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 		Dockerfile = Dockerfile
+		version.json = version.json
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cfmes", "cfmes.csproj", "{FF80ECF7-0F2B-419A-ABC3-9204685FFF9B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "cfmes.tests", "cfmes.tests\cfmes.tests.csproj", "{D39494E4-550A-4A14-9143-DF6E2153BAC2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,6 +24,10 @@ Global
 		{FF80ECF7-0F2B-419A-ABC3-9204685FFF9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF80ECF7-0F2B-419A-ABC3-9204685FFF9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF80ECF7-0F2B-419A-ABC3-9204685FFF9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D39494E4-550A-4A14-9143-DF6E2153BAC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D39494E4-550A-4A14-9143-DF6E2153BAC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D39494E4-550A-4A14-9143-DF6E2153BAC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D39494E4-550A-4A14-9143-DF6E2153BAC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

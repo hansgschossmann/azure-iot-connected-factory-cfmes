@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# RCS1141: Add 'param' element to documentation comment.
+dotnet_diagnostic.RCS1141.severity = none

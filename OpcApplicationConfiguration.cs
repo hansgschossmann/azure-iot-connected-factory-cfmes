@@ -1,10 +1,9 @@
-﻿
-using Opc.Ua;
+﻿using Opc.Ua;
+using Serilog;
 
 namespace CfMes
 {
     using System.Threading.Tasks;
-    using static Program;
 
     public partial class OpcApplicationConfiguration
     {
@@ -45,29 +44,31 @@ namespace CfMes
         /// <summary>
         /// Configures all OPC stack settings
         /// </summary>
-        public async Task<ApplicationConfiguration> ConfigureAsync()
+        public async Task<ApplicationConfiguration> ConfigureAsync(ILogger logger)
         {
+            _logger = logger;
             // Instead of using a Config.xml we configure everything programmatically.
 
             //
             // OPC UA Application configuration
             //
-            ApplicationConfiguration = new ApplicationConfiguration();
+            ApplicationConfiguration = new ApplicationConfiguration
+            {
+                // basic settings
+                ApplicationName = ApplicationName,
+                ApplicationUri = ApplicationUri,
+                ProductUri = ProductUri,
+                ApplicationType = ApplicationType.Client,
 
-            // basic settings
-            ApplicationConfiguration.ApplicationName = ApplicationName;
-            ApplicationConfiguration.ApplicationUri = ApplicationUri;
-            ApplicationConfiguration.ProductUri = ProductUri;
-            ApplicationConfiguration.ApplicationType = ApplicationType.Client;
-
-            //
-            // TraceConfiguration
-            //
-            ApplicationConfiguration.TraceConfiguration = new TraceConfiguration();
+                //
+                // TraceConfiguration
+                //
+                TraceConfiguration = new TraceConfiguration()
+            };
             ApplicationConfiguration.TraceConfiguration.TraceMasks = OpcStackTraceMask;
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
             Utils.Tracing.TraceEventHandler += LoggerOpcUaTraceHandler;
-            Logger.Information($"opcstacktracemask set to: 0x{OpcStackTraceMask:X}");
+            _logger.Information($"opcstacktracemask set to: 0x{OpcStackTraceMask:X}");
 
             //
             // Security configuration
@@ -107,32 +108,32 @@ namespace CfMes
             // map logging level
             if ((e.TraceMask & OpcTraceToLoggerVerbose) != 0)
             {
-                Logger.Verbose(message);
+                _logger.Verbose(message);
                 return;
             }
             if ((e.TraceMask & OpcTraceToLoggerDebug) != 0)
             {
-                Logger.Debug(message);
+                _logger.Debug(message);
                 return;
             }
             if ((e.TraceMask & OpcTraceToLoggerInformation) != 0)
             {
-                Logger.Information(message);
+                _logger.Information(message);
                 return;
             }
             if ((e.TraceMask & OpcTraceToLoggerWarning) != 0)
             {
-                Logger.Warning(message);
+                _logger.Warning(message);
                 return;
             }
             if ((e.TraceMask & OpcTraceToLoggerError) != 0)
             {
-                Logger.Error(message);
+                _logger.Error(message);
                 return;
             }
             if ((e.TraceMask & OpcTraceToLoggerFatal) != 0)
             {
-                Logger.Fatal(message);
+                _logger.Fatal(message);
                 return;
             }
             return;
@@ -141,5 +142,7 @@ namespace CfMes
 #pragma warning disable CA1308 // Normalize strings to uppercase
         private static string _hostname = $"{Utils.GetHostName().ToLowerInvariant()}";
 #pragma warning restore CA1308 // Normalize strings to uppercase
+
+        private static ILogger _logger;
     }
 }
